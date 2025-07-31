@@ -6,7 +6,7 @@ import {
 	END,
 } from "@langchain/langgraph";
 import type { AIMessage, BaseMessage } from "@langchain/core/messages";
-import { ChatGroq } from "@langchain/groq";
+import type { ChatGroq } from "@langchain/groq";
 
 const AgentState = Annotation.Root({
 	messages: Annotation<BaseMessage[]>({
