@@ -27,24 +27,7 @@ export default function NavigationHeader({ user }: NavigationHeaderProps) {
 
                     {/* Desktop Navigation */}
                     <nav className="hidden md:flex items-center space-x-8">
-                        <Link
-                            href="/home"
-                            className="text-foreground/80 hover:text-foreground transition-colors duration-200 font-medium"
-                        >
-                            Home
-                        </Link>
-                        <Link
-                            href="/chats"
-                            className="text-foreground/80 hover:text-foreground transition-colors duration-200 font-medium"
-                        >
-                            Chats
-                        </Link>
-                        <Link
-                            href="/settings"
-                            className="text-foreground/80 hover:text-foreground transition-colors duration-200 font-medium"
-                        >
-                            Settings
-                        </Link>
+
                     </nav>
 
                     <UserMenu user={user} />
