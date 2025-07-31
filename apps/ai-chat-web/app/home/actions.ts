@@ -16,3 +16,14 @@ export async function getAuthenticatedUser() {
 		error: null,
 	};
 }
+
+export async function sendMessage(message: string) {
+	const response = await fetch("/chat", {
+		method: "POST",
+		body: JSON.stringify({ message }),
+	});
+
+	const data = await response.json();
+
+	return data;
+}

@@ -1,3 +1,11 @@
+import ChatWrapper from "./_components/chat-wrapper";
+
 export default function HomePage() {
-	return <div>Home</div>;
+
+
+	return (
+		<div>
+			<ChatWrapper />
+		</div>
+	);
 }
