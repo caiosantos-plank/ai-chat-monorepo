@@ -23,8 +23,8 @@ export default function ChatWrapper() {
         const { message: response } = await sendMessage(content);
 
         const aiMessage: Message = {
-            id: response.kwargs.response_metadata.id ?? "",
-            content: response.kwargs.content.toString(),
+            id: Date.now().toString(),
+            content: response.content.toString(),
             role: "assistant",
             timestamp: new Date(),
         };
