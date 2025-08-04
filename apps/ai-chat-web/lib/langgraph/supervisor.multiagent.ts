@@ -280,7 +280,11 @@ export class Supervisor {
 	public graph = new StateGraph(AgentState)
 		.addNode("supervisor", this.supervisorAgent)
 		.addNode("tools", tools)
-		.addNode("weather_expert", this.weatherAgent)
+		.addNode("weather_expert", this.weatherAgent, {
+			retryPolicy: {
+				maxAttempts: 2,
+			},
+		})
 		.addNode("news_expert", this.newsAgent)
 		.addNode("chat_agent", this.chatAgent)
 

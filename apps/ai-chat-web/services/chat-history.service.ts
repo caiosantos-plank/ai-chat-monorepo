@@ -5,7 +5,10 @@ import type Response from "@/shared/types/response";
 interface ChatHistoryServiceInterface {
 	saveChatHistory(
 		chatId: string,
-		messages: string,
+		messages: {
+			content: string;
+			role: string;
+		}[],
 		summary: string,
 	): Promise<Response<void>>;
 	createChatMessage(messsage: string): Promise<Response<void>>;
@@ -14,7 +17,10 @@ interface ChatHistoryServiceInterface {
 export default class ChatHistoryService implements ChatHistoryServiceInterface {
 	async saveChatHistory(
 		chatId: string,
-		messages: string,
+		messages: {
+			content: string;
+			role: string;
+		}[],
 		summary: string,
 	): Promise<Response<void>> {
 		try {
@@ -24,7 +30,7 @@ export default class ChatHistoryService implements ChatHistoryServiceInterface {
 				.from("chat_history")
 				.upsert({
 					id: chatId,
-					messages: messages,
+					messages: JSON.stringify(messages),
 					summary: summary,
 				})
 				.select()

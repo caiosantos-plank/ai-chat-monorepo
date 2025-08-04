@@ -16,7 +16,6 @@ export const weatherTool = tool(
 			wind_speed: `${rawData.wind_speed} km/h`,
 		};
 
-		console.log("Weather tool called with input:", location, data);
 		return data;
 	},
 	{

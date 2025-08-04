@@ -4,12 +4,11 @@ import {
 	HumanMessage,
 } from "@langchain/core/messages";
 
-export function parseAgentMessagesToSupabase(messages: BaseMessage[]) {
-	return messages.map((message) => ({
-		content: message.content,
-		role:
-			"role" in message && message.role === "assistant" ? "assistant" : "user",
-	}));
+export function parseAgentMessagesToSupabase(message: BaseMessage) {
+	return {
+		content: message.content as string,
+		role: message instanceof HumanMessage ? "user" : "assistant",
+	};
 }
 
 export function parseSupabaseMessagesToAgentMessages(
