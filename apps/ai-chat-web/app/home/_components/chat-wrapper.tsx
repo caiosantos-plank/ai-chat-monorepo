@@ -5,9 +5,13 @@ import type { Message } from "@/shared/types/entities";
 import { sendMessage } from "../actions";
 import ChatWindow from "./chat-window";
 
-export default function ChatWrapper() {
+interface ChatWrapperProps {
+    chatId: string;
+    history: Message[];
+}
 
-    const [messages, setMessages] = useState<Message[]>([]);
+export default function ChatWrapper({ chatId, history }: ChatWrapperProps) {
+    const [messages, setMessages] = useState<Message[]>(history);
     const [loading, setLoading] = useState(false);
 
     const handleSendMessage = async (content: string) => {
@@ -20,7 +24,7 @@ export default function ChatWrapper() {
         setMessages(prev => [...prev, userMessage]);
         setLoading(true);
 
-        const { message: response } = await sendMessage(content);
+        const { message: response } = await sendMessage(chatId, content);
 
         const aiMessage: Message = {
             id: Date.now().toString(),

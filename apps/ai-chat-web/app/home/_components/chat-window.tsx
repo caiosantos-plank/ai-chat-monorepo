@@ -1,10 +1,10 @@
 /** biome-ignore-all lint/correctness/useExhaustiveDependencies: <explanation> */
 "use client";
 
-import type { User } from "@supabase/supabase-js";
 import { useState, useRef, useEffect } from "react";
-import { formatTime } from "@/shared/utils";
+import type { User } from "@supabase/supabase-js";
 import { Button, Input } from "@/shared/components";
+import { formatTime } from "@/shared/utils";
 
 interface Message {
     id: string;
@@ -54,8 +54,6 @@ export default function ChatWindow({
             handleSubmit(e);
         }
     };
-
-
 
     const getUserInitials = (name?: string, email?: string) => {
         if (name) {
