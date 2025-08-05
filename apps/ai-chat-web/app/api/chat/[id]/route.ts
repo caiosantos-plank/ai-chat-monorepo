@@ -1,4 +1,8 @@
-import { type BaseMessage, HumanMessage } from "@langchain/core/messages";
+import {
+	type BaseMessage,
+	HumanMessage,
+	SystemMessage,
+} from "@langchain/core/messages";
 import { NextResponse } from "next/server";
 import { createModel } from "@/lib/langgraph/model";
 import { Supervisor } from "@/lib/langgraph/supervisor.multiagent";
@@ -26,8 +30,9 @@ async function getAllStateHistory(config: {
 	return history;
 }
 
-async function saveMessageToChatHistory(
+async function saveStateToChatHistory(
 	id: string,
+	summary: string,
 	currentHistory: BaseMessage[],
 	message: BaseMessage,
 ) {
@@ -37,14 +42,17 @@ async function saveMessageToChatHistory(
 		parsedMessage,
 	];
 
-	await chatHistoryService.saveChatHistory(id, history, "");
+	await chatHistoryService.saveChatHistory(id, summary, history);
 }
 
 async function getChatHistory(id: string) {
 	const { data: chatHistory } = await chatHistoryService.getChatHistory(id);
 	const messages = JSON.parse(chatHistory?.messages ?? "[]");
 
-	return parseSupabaseMessagesToAgentMessages(messages);
+	return {
+		messages: parseSupabaseMessagesToAgentMessages(messages),
+		summary: chatHistory?.summary,
+	};
 }
 
 export async function POST(
@@ -60,8 +68,18 @@ export async function POST(
 	};
 
 	const agentStateHistory = await getAllStateHistory(config);
-	const storedChatHistory = await getChatHistory(id);
-	const chatHistory = agentStateHistory.length === 0 ? storedChatHistory : [];
+	const { messages: storedChatHistory, summary: storedSummary } =
+		await getChatHistory(id);
+	const chatHistory =
+		agentStateHistory.length === 0
+			? storedSummary
+				? [
+						new SystemMessage(
+							`Summary of conversation earlier: ${storedSummary}`,
+						),
+					]
+				: storedChatHistory
+			: [];
 
 	const userMessage = new HumanMessage(message);
 
@@ -74,15 +92,21 @@ export async function POST(
 		)
 	).messages;
 
-	const lastMessage = response.at(-1);
+	const lastMessage = response.at(-1) as BaseMessage;
+	const { summary } = (await getAllStateHistory(config))[0].values;
 
 	if (lastMessage) {
-		await saveMessageToChatHistory(
+		await saveStateToChatHistory(
 			id,
+			summary,
 			[...storedChatHistory, userMessage],
 			lastMessage,
 		);
 	}
 
-	return NextResponse.json({ message: lastMessage });
+	return NextResponse.json({
+		message: {
+			...lastMessage,
+		},
+	});
 }

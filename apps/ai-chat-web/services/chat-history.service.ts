@@ -5,23 +5,24 @@ import type Response from "@/shared/types/response";
 interface ChatHistoryServiceInterface {
 	saveChatHistory(
 		chatId: string,
+		summary: string,
 		messages: {
 			content: string;
 			role: string;
 		}[],
-		summary: string,
 	): Promise<Response<void>>;
-	createChatMessage(messsage: string): Promise<Response<void>>;
+	getChatHistory(chatId: string): Promise<Response<ChatHistory>>;
+	clearChatHistory(chatId: string): Promise<Response<void>>;
 }
 
 export default class ChatHistoryService implements ChatHistoryServiceInterface {
 	async saveChatHistory(
 		chatId: string,
+		summary: string,
 		messages: {
 			content: string;
 			role: string;
 		}[],
-		summary: string,
 	): Promise<Response<void>> {
 		try {
 			const supabase = await createClient();
@@ -78,8 +79,19 @@ export default class ChatHistoryService implements ChatHistoryServiceInterface {
 		}
 	}
 
-	async createChatMessage(): Promise<Response<void>> {
+	async clearChatHistory(chatId: string): Promise<Response<void>> {
 		try {
+			const supabase = await createClient();
+
+			const { error } = await supabase
+				.from("chat_history")
+				.delete()
+				.eq("id", chatId);
+
+			if (error) {
+				throw new Error("Failed to clear chat history");
+			}
+
 			return {
 				data: null,
 				error: null,

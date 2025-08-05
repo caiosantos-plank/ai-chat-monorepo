@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import type { Message } from "@/shared/types/entities";
-import { sendMessage } from "../actions";
 import ChatWindow from "./chat-window";
+import { sendMessage } from "../actions.client";
+import { clearChatHistory } from "../actions.server";
 
 interface ChatWrapperProps {
     chatId: string;
@@ -36,12 +37,17 @@ export default function ChatWrapper({ chatId, history }: ChatWrapperProps) {
         setMessages(prev => [...prev, aiMessage]);
     };
 
+    const handleClearChatHistory = async () => {
+        await clearChatHistory(chatId);
+    };
+
     return (
         <div className="h-[calc(100vh-4rem)]">
             <ChatWindow
                 messages={messages}
                 onSendMessage={handleSendMessage}
                 loading={loading}
+                onClearChatHistory={handleClearChatHistory}
             />
         </div>
     )

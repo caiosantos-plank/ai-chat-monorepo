@@ -1,5 +1,5 @@
-import ChatWrapper from "../_components/chat-wrapper";
-import { getChatHistory } from "./actions";
+import { ChatWrapper } from "./_components";
+import { getChatHistory } from "./actions.server";
 
 export default async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;

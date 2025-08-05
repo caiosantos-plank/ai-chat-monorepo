@@ -4,23 +4,30 @@ import {
 	Command,
 	END,
 	MemorySaver,
-	type MessagesAnnotation,
+	MessagesAnnotation,
 	START,
 	StateGraph,
 } from "@langchain/langgraph";
-import { AIMessage, type BaseMessage } from "@langchain/core/messages";
+import { v4 as uuid } from "uuid";
+import {
+	AIMessage,
+	HumanMessage,
+	RemoveMessage,
+} from "@langchain/core/messages";
 import z from "zod";
 import { tools } from "./tools";
 
 const AgentState = Annotation.Root({
-	messages: Annotation<BaseMessage[]>({
-		reducer: (x, y) => x.concat(y),
-	}),
+	...MessagesAnnotation.spec,
 	goingTo: Annotation<string[]>({
 		reducer: (x, y) => y,
 	}),
 	agentCalls: Annotation<Record<string, number>>({
 		reducer: (x, y) => ({ ...x, ...y }),
+	}),
+	summary: Annotation<string>({
+		reducer: (_, action) => action,
+		default: () => "",
 	}),
 });
 
@@ -50,7 +57,7 @@ export class Supervisor {
 	private weatherAgent = async (state: typeof AgentState.State) => {
 		if (
 			state.agentCalls?.weather_expert &&
-			state.agentCalls.weather_expert > 1
+			state.agentCalls.weather_expert > 2
 		) {
 			return new Command({
 				goto: "chat_agent",
@@ -72,6 +79,8 @@ export class Supervisor {
 					"You are a weather expert, and you are responsible to provide the weather information.",
 					" You cannot answer questions that are not related to the weather.",
 					" You have access to the following tools: get_weather.",
+					"You must send just the location to the get_weather tool, do not include any other text.",
+					"Do not include words like city, country, state, etc. Just the location name.",
 					" You must avoid call to the same tool twice.",
 				].join(""),
 			},
@@ -105,7 +114,7 @@ export class Supervisor {
 	};
 
 	private newsAgent = async (state: typeof AgentState.State) => {
-		if (state.agentCalls?.news_expert && state.agentCalls.news_expert > 1) {
+		if (state.agentCalls?.news_expert && state.agentCalls.news_expert > 2) {
 			return new Command({
 				goto: "chat_agent",
 				update: {
@@ -160,7 +169,7 @@ export class Supervisor {
 	};
 
 	private chatAgent = async (state: typeof AgentState.State) => {
-		const possibleDestinations = ["__end__"];
+		const possibleDestinations = ["summarizer_agent", END];
 
 		const responseSchema = z.object({
 			response: z
@@ -174,6 +183,8 @@ export class Supervisor {
 					"The next agent to call, or __end__ if the user's query has been resolved. Must be one of the specified values.",
 				),
 		});
+
+		console.log("chat agent called", state.messages.length);
 
 		const response = await this.model
 			.withStructuredOutput(responseSchema, {
@@ -193,25 +204,88 @@ export class Supervisor {
 				...state.messages,
 			]);
 
-		console.log("chat agent called", response.goto);
-
 		const aiMessage = {
 			role: "assistant",
 			content: response.response,
 			name: "chat_agent",
 		};
 
+		console.log("chat response", aiMessage);
+
 		return new Command({
-			goto: "__end__",
+			goto: state.messages.length >= 6 ? "summarizer_agent" : END,
 			update: {
 				messages: aiMessage,
-				goingTo: "__end__",
+				goingTo: state.messages.length >= 6 ? "summarizer_agent" : END,
 				agentCalls: {
 					chat_agent: 0,
 					weather_expert: 0,
 					news_expert: 0,
 					supervisor: 0,
 				},
+			},
+		});
+	};
+
+	private summarizerAgent = async (state: typeof AgentState.State) => {
+		const { summary, messages } = state;
+
+		console.log("summarizer agent called");
+
+		const responseSchema = z.object({
+			response: z
+				.string()
+				.describe(
+					"A human readable response to the original question. Does not need to be a final response. Will be streamed back to the user.",
+				),
+			goto: z
+				.enum(["__end__"])
+				.describe(
+					"The next agent to call, or __end__ if the user's query has been resolved. Must be one of the specified values.",
+				),
+		});
+
+		let prompt = "";
+		if (summary) {
+			prompt = [
+				`This is summary of the conversation to date: ${summary}\n\n`,
+				"Extend the summary by taking into account the new messages above",
+			].join("");
+		} else {
+			prompt = "Create a summary of the conversation to above";
+		}
+
+		const allMessages = [
+			...messages,
+			new HumanMessage({
+				id: uuid(),
+				content: prompt,
+			}),
+		];
+
+		const response = await this.model
+			.withStructuredOutput(responseSchema, {
+				name: "router",
+			})
+			.invoke(allMessages);
+
+		const lastMessage = state.messages.at(-1);
+		const deletedMessages = state.messages.map(
+			(message) =>
+				new RemoveMessage({
+					id: message.id ?? new Date().getDate().toString(),
+				}),
+		);
+
+		return new Command({
+			goto: END,
+			update: {
+				summary: response.response,
+				messages: [
+					...deletedMessages,
+					new AIMessage(response.response),
+					new AIMessage(lastMessage?.content.toString() ?? ""),
+				],
 			},
 		});
 	};
@@ -279,14 +353,23 @@ export class Supervisor {
 
 	public graph = new StateGraph(AgentState)
 		.addNode("supervisor", this.supervisorAgent)
-		.addNode("tools", tools)
-		.addNode("weather_expert", this.weatherAgent, {
+		.addNode("tools", tools, {
 			retryPolicy: {
-				maxAttempts: 2,
+				maxAttempts: 3,
 			},
 		})
-		.addNode("news_expert", this.newsAgent)
+		.addNode("weather_expert", this.weatherAgent, {
+			retryPolicy: {
+				maxAttempts: 3,
+			},
+		})
+		.addNode("news_expert", this.newsAgent, {
+			retryPolicy: {
+				maxAttempts: 3,
+			},
+		})
 		.addNode("chat_agent", this.chatAgent)
+		.addNode("summarizer_agent", this.summarizerAgent)
 
 		.addEdge(START, "supervisor")
 		.addConditionalEdges(
@@ -316,7 +399,18 @@ export class Supervisor {
 		.addEdge("weather_expert", "chat_agent")
 		.addEdge("news_expert", "chat_agent")
 
-		.addEdge("chat_agent", "__end__")
+		.addConditionalEdges(
+			"chat_agent",
+			(state: typeof AgentState.State) => {
+				return state.goingTo;
+			},
+			{
+				summarizer_agent: "summarizer_agent",
+				__end__: "__end__",
+			},
+		)
+
+		.addEdge("summarizer_agent", END)
 		.compile({
 			checkpointer: this.memorySaver,
 		});
