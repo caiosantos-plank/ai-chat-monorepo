@@ -1,12 +1,12 @@
 "use server";
 
-import { HumanMessage } from "@langchain/core/messages";
 import { NextResponse } from "next/server";
-import { Agent } from "@/lib/langgraph/agent";
+import { HumanMessage } from "@langchain/core/messages";
 import { createModel } from "@/lib/langgraph/model";
+import { ChatAgent } from "@/lib/langgraph/agents";
 
 const model = await createModel();
-const agent = new Agent(model);
+const agent = new ChatAgent(model);
 
 export async function POST(request: Request) {
 	const data = await request.json();

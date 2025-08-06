@@ -5,8 +5,13 @@ import {
 	START,
 	END,
 } from "@langchain/langgraph";
-import type { AIMessage, BaseMessage } from "@langchain/core/messages";
+import type {
+	AIMessage,
+	BaseMessage,
+	SystemMessage,
+} from "@langchain/core/messages";
 import type { ChatGroq } from "@langchain/groq";
+import { ChatOpenAI } from "@langchain/openai";
 
 const AgentState = Annotation.Root({
 	messages: Annotation<BaseMessage[]>({
@@ -16,9 +21,14 @@ const AgentState = Annotation.Root({
 
 export class Agent {
 	private memorySaver = new MemorySaver();
+	private systemPrompt: SystemMessage;
 
-	constructor(private model: ChatGroq) {
+	constructor(
+		private model: ChatOpenAI,
+		systemPrompt: SystemMessage,
+	) {
 		this.model = model;
+		this.systemPrompt = systemPrompt;
 	}
 
 	private shouldContinue(
@@ -35,7 +45,10 @@ export class Agent {
 	}
 
 	private invokeModel = async (state: typeof AgentState.State) => {
-		const response = await this.model.invoke(state.messages);
+		const response = await this.model.invoke(
+			[this.systemPrompt, ...state.messages],
+			{},
+		);
 
 		return {
 			messages: [response],

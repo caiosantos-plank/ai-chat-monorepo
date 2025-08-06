@@ -18,7 +18,7 @@ export async function getAuthenticatedUser() {
 }
 
 export async function sendMessage(message: string) {
-	const response = await fetch("/chat", {
+	const response = await fetch("/chat/multi-agent", {
 		method: "POST",
 		body: JSON.stringify({ message }),
 	});
