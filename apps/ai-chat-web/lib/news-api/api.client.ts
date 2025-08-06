@@ -10,14 +10,11 @@ interface NewsApiClientInterface {
 export class NewsApiClient implements NewsApiClientInterface {
 	private readonly apiKey: string = process.env.NEXT_PUBLIC_NEWS_API_KEY ?? "";
 
-	async getNews(
-		query: string,
-		date: Date = new Date(),
-	): Promise<NewsArticle[]> {
+	async getNews(query: string): Promise<NewsArticle[]> {
 		try {
 			const pageSize = 2;
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_NEWS_API_URL}/top-headlines?q=${query}&pageSize=${pageSize}&apiKey=${this.apiKey}`,
+				`${process.env.NEXT_PUBLIC_NEWS_API_URL}/everything?q=${query}&pageSize=${pageSize}&apiKey=${this.apiKey}`,
 			);
 
 			const data = await response.json();

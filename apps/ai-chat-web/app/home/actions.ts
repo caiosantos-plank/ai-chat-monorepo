@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import AuthService from "@/services/auth.service";
 
 export async function getAuthenticatedUser() {
@@ -17,13 +18,13 @@ export async function getAuthenticatedUser() {
 	};
 }
 
-export async function sendMessage(message: string) {
-	const response = await fetch("/chat/multi-agent", {
+export async function createChat(name: string) {
+	const response = await fetch("/api/chat", {
 		method: "POST",
-		body: JSON.stringify({ message }),
+		body: JSON.stringify({ name }),
 	});
 
-	const data = await response.json();
+	const { data, error } = await response.json();
 
-	return data;
+	redirect(`/home/${data.id}`);
 }
