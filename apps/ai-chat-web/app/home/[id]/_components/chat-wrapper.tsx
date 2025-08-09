@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useChat } from '@ai-sdk/react'
+import { useEffect, useState } from "react";
 import type { Message } from "@/shared/types/entities";
-import ChatWindow from "./chat-window";
-import { sendMessage } from "../actions.client";
+import { parseStreamMessageToMessage } from "@/shared/utils";
 import { clearChatHistory } from "../actions.server";
+import ChatWindow from "./chat-window";
 
 interface ChatWrapperProps {
     chatId: string;
@@ -12,29 +13,23 @@ interface ChatWrapperProps {
 }
 
 export default function ChatWrapper({ chatId, history }: ChatWrapperProps) {
-    const [messages, setMessages] = useState<Message[]>(history);
-    const [loading, setLoading] = useState(false);
+    const [parsedMessages, setParsedMessages] = useState<Message[]>(history);
 
-    const handleSendMessage = async (content: string) => {
-        const userMessage: Message = {
-            id: Date.now().toString(),
-            content,
-            role: "user",
-            timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, userMessage]);
-        setLoading(true);
+    const { input, messages, handleSubmit, handleInputChange, isLoading } = useChat({
+        streamProtocol: "text",
+        id: chatId,
+        api: `/api/chat/${chatId}`,
+        initialMessages: history,
+    });
 
-        const { message: response } = await sendMessage(chatId, content);
+    useEffect(() => {
+        console.log("messages", messages.at(-1));
+        setParsedMessages(messages.map(parseStreamMessageToMessage));
+    }, [messages]);
 
-        const aiMessage: Message = {
-            id: Date.now().toString(),
-            content: response.content.toString(),
-            role: "assistant",
-            timestamp: new Date(),
-        };
-        setLoading(false);
-        setMessages(prev => [...prev, aiMessage]);
+    const handleSendMessage = (e: React.FormEvent) => {
+        e.preventDefault();
+        handleSubmit(e);
     };
 
     const handleClearChatHistory = async () => {
@@ -44,9 +39,11 @@ export default function ChatWrapper({ chatId, history }: ChatWrapperProps) {
     return (
         <div className="h-[calc(100vh-4rem)]">
             <ChatWindow
-                messages={messages}
+                messages={parsedMessages}
+                input={input}
+                onInputChange={handleInputChange}
                 onSendMessage={handleSendMessage}
-                loading={loading}
+                loading={isLoading}
                 onClearChatHistory={handleClearChatHistory}
             />
         </div>

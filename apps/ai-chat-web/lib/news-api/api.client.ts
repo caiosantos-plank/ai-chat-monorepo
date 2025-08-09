@@ -12,7 +12,7 @@ export class NewsApiClient implements NewsApiClientInterface {
 
 	async getNews(query: string): Promise<NewsArticle[]> {
 		try {
-			const pageSize = 2;
+			const pageSize = 3;
 			const response = await fetch(
 				`${process.env.NEXT_PUBLIC_NEWS_API_URL}/everything?q=${query}&pageSize=${pageSize}&apiKey=${this.apiKey}`,
 			);
@@ -21,8 +21,6 @@ export class NewsApiClient implements NewsApiClientInterface {
 			if (!data.articles) {
 				throw new Error("No articles found");
 			}
-
-			console.log("news api client data:", data);
 
 			return data.articles.map(
 				(article: { title: string; description: string }) =>

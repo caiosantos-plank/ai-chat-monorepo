@@ -5,6 +5,5 @@ export async function sendMessage(chatId: string, message: string) {
 	});
 
 	const data = await response.json();
-	console.log("sendMessage: data", data);
 	return data;
 }

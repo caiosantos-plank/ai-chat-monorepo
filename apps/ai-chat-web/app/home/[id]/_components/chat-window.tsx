@@ -1,22 +1,18 @@
 /** biome-ignore-all lint/correctness/useExhaustiveDependencies: <explanation> */
 "use client";
 
-import { useState, useRef, useEffect } from "react";
 import type { User } from "@supabase/supabase-js";
+import { useRef, useEffect, type ChangeEventHandler } from "react";
 import { Button, Input } from "@/shared/components";
+import type { AgentCalls, Message } from "@/shared/types/entities";
 import { formatTime } from "@/shared/utils";
-
-interface Message {
-    id: string;
-    content: string;
-    role: "user" | "assistant";
-    timestamp: Date;
-    user?: User;
-}
+import RecordingAudioComponent from "./recording-audio.component";
 
 interface ChatWindowProps {
     messages?: Message[];
-    onSendMessage?: (message: string) => void;
+    input: string;
+    onInputChange: ChangeEventHandler<HTMLInputElement>;
+    onSendMessage: (event: React.FormEvent) => void;
     loading?: boolean;
     user?: User | null;
     className?: string;
@@ -25,13 +21,14 @@ interface ChatWindowProps {
 
 export default function ChatWindow({
     messages = [],
+    input,
+    onInputChange,
     onSendMessage,
     loading = false,
     user,
     className = "",
     onClearChatHistory
 }: ChatWindowProps) {
-    const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -42,20 +39,22 @@ export default function ChatWindow({
         scrollToBottom();
     }, [messages.length]);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (inputValue.trim() && onSendMessage && !loading) {
-            onSendMessage(inputValue.trim());
-            setInputValue("");
-        }
-    };
-
     const handleKeyPress = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit(e);
+            onSendMessage(e);
         }
     };
+
+    const getAgentName = (agentCalls: AgentCalls) => {
+        const agentNames = {
+            weather_expert: "Weather Expert",
+            news_expert: "News Expert",
+            supervisor: "Cowboy",
+        }
+        const filteredAgentCalls = Object.fromEntries(Object.entries(agentCalls).filter(([_, value]) => value > 0));
+        return Object.keys(filteredAgentCalls).map(key => agentNames[key as keyof AgentCalls]).join(", ");
+    }
 
     const getUserInitials = (name?: string, email?: string) => {
         if (name) {
@@ -94,10 +93,8 @@ export default function ChatWindow({
                         <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                         </svg>
-                        History
+                        {" "}History
                     </Button>
-                    {/* <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm text-muted-foreground">Active</span> */}
                 </div>
             </div>
 
@@ -148,7 +145,11 @@ export default function ChatWindow({
                                     </div>
                                     <div className={`flex items-center space-x-2 text-xs text-muted-foreground ${message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
                                         }`}>
-                                        <span>{message.role === "user" ? "You" : "AI Assistant"}</span>
+                                        <div className="flex items-center space-x-2 border-1 border-background p-1 rounded-md bg-red-400/50">
+                                            <span className="text-xs text-white">
+                                                {message.role === "user" ? "You" : getAgentName(message.agentCalls ?? {})}
+                                            </span>
+                                        </div>
                                         <span>•</span>
                                         <span>{formatTime(message.timestamp)}</span>
                                     </div>
@@ -186,21 +187,22 @@ export default function ChatWindow({
 
             {/* Input Area */}
             <div className="border-t border-border/50 bg-card/50 backdrop-blur-sm p-4">
-                <form onSubmit={handleSubmit} className="flex items-end space-x-3">
+                <form onSubmit={onSendMessage} className="flex items-end space-x-3">
                     <div className="flex-1">
                         <Input
                             type="text"
                             placeholder="Type your message..."
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
+                            value={input}
+                            onChange={onInputChange}
                             onKeyPress={handleKeyPress}
                             disabled={loading}
                             className="w-full resize-none border-border/50 focus:border-secondary focus:ring-secondary/20"
                         />
                     </div>
+                    <RecordingAudioComponent />
                     <Button
                         type="submit"
-                        disabled={!inputValue.trim() || loading}
+                        disabled={!input.trim() || loading}
                         loading={loading}
                         className="px-6 h-10 bg-gradient-to-r from-secondary to-secondary/90 hover:from-secondary/90 hover:to-secondary text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
                     >
@@ -211,7 +213,7 @@ export default function ChatWindow({
                 {/* Input Helpers */}
                 <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
                     <span>Press Enter to send, Shift+Enter for new line</span>
-                    <span>{inputValue.length}/1000</span>
+                    <span>{input.length}/1000</span>
                 </div>
             </div>
         </div>

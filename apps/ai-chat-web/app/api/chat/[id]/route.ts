@@ -3,10 +3,10 @@ import {
 	HumanMessage,
 	SystemMessage,
 } from "@langchain/core/messages";
-import { NextResponse } from "next/server";
 import { createModel } from "@/lib/langgraph/model";
 import { Supervisor } from "@/lib/langgraph/supervisor.multiagent";
 import ChatHistoryService from "@/services/chat-history.service";
+import type { AgentCalls } from "@/shared/types/entities";
 import {
 	parseAgentMessagesToSupabase,
 	parseSupabaseMessagesToAgentMessages,
@@ -35,10 +35,13 @@ async function saveStateToChatHistory(
 	summary: string,
 	currentHistory: BaseMessage[],
 	message: BaseMessage,
+	agentCalls: AgentCalls,
 ) {
-	const parsedMessage = parseAgentMessagesToSupabase(message);
+	const parsedMessage = parseAgentMessagesToSupabase(message, agentCalls);
 	const history = [
-		...currentHistory.map(parseAgentMessagesToSupabase),
+		...currentHistory.map((message) =>
+			parseAgentMessagesToSupabase(message, agentCalls),
+		),
 		parsedMessage,
 	];
 
@@ -60,7 +63,8 @@ export async function POST(
 	{ params }: { params: Promise<{ id: string }> },
 ) {
 	const { id } = await params;
-	const { message } = await request.json();
+	const { messages } = await request.json();
+	const message = messages.at(-1)?.content;
 
 	const config = {
 		configurable: { thread_id: id },
@@ -83,30 +87,72 @@ export async function POST(
 
 	const userMessage = new HumanMessage(message);
 
-	const response = (
-		await agent.graph.invoke(
-			{
-				messages: [...chatHistory, new HumanMessage(message)],
-			},
-			config,
-		)
-	).messages;
+	const stream = new ReadableStream({
+		async start(controller) {
+			console.log("start stream");
+			try {
+				const graphStream = await agent.graph.stream(
+					{
+						messages: [...chatHistory, userMessage],
+					},
+					config,
+				);
 
-	const lastMessage = response.at(-1) as BaseMessage;
-	const { summary } = (await getAllStateHistory(config))[0].values;
+				let lastMessage: BaseMessage | null = null;
+				let finalMessage: BaseMessage | null = null;
 
-	if (lastMessage) {
-		await saveStateToChatHistory(
-			id,
-			summary,
-			[...storedChatHistory, userMessage],
-			lastMessage,
-		);
-	}
+				for await (const chunk of graphStream) {
+					const currentMessages = chunk.messages;
+					const latestMessage = currentMessages[currentMessages.length - 1];
 
-	return NextResponse.json({
-		message: {
-			...lastMessage,
+					if (latestMessage && latestMessage !== lastMessage) {
+						lastMessage = latestMessage;
+						finalMessage = latestMessage;
+					}
+				}
+
+				const finalStateHistory = await getAllStateHistory(config);
+				const { summary, agentCalls } = finalStateHistory[0].values;
+
+				if (finalMessage) {
+					await saveStateToChatHistory(
+						id,
+						summary,
+						[...storedChatHistory, userMessage],
+						finalMessage,
+						agentCalls,
+					);
+				}
+
+				controller.enqueue(
+					new TextEncoder().encode(
+						JSON.stringify({ ...finalMessage, agentCalls }),
+					),
+				);
+				controller.close();
+			} catch (error) {
+				console.error("Streaming error:", error);
+				const errorData = {
+					id: `error_${Date.now()}`,
+					role: "assistant",
+					content: "Sorry, I encountered an error. Please try again.",
+					createdAt: new Date().toISOString(),
+				};
+
+				controller.enqueue(
+					new TextEncoder().encode(`data: ${JSON.stringify(errorData)}\n\n`),
+				);
+
+				controller.close();
+			}
+		},
+	});
+
+	return new Response(stream, {
+		headers: {
+			"Content-Type": "text/plain; charset=utf-8",
+			"Cache-Control": "no-cache",
+			Connection: "keep-alive",
 		},
 	});
 }

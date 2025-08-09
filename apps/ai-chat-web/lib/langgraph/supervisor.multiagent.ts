@@ -1,3 +1,8 @@
+import {
+	AIMessage,
+	HumanMessage,
+	RemoveMessage,
+} from "@langchain/core/messages";
 import type { ChatGroq } from "@langchain/groq";
 import {
 	Annotation,
@@ -9,11 +14,6 @@ import {
 	StateGraph,
 } from "@langchain/langgraph";
 import { v4 as uuid } from "uuid";
-import {
-	AIMessage,
-	HumanMessage,
-	RemoveMessage,
-} from "@langchain/core/messages";
 import z from "zod";
 import {
 	searchToolNode,
@@ -84,9 +84,15 @@ export class Supervisor {
 					...state.agentCalls,
 					messages: response,
 					goingTo: "weather_tool",
+					agentCalls: {
+						...state.agentCalls,
+						weather_expert: (state.agentCalls?.weather_expert ?? 0) + 1,
+					},
 				},
 			});
 		}
+
+		console.log("weather agent called");
 
 		return new Command({
 			goto: "chat_agent",
@@ -125,9 +131,15 @@ export class Supervisor {
 					...state.agentCalls,
 					messages: response,
 					goingTo: "search_tool",
+					agentCalls: {
+						...state.agentCalls,
+						news_expert: (state.agentCalls?.news_expert ?? 0) + 1,
+					},
 				},
 			});
 		}
+
+		console.log("news agent called");
 
 		return new Command({
 			goto: "chat_agent",
@@ -158,8 +170,6 @@ export class Supervisor {
 				),
 		});
 
-		console.log("chat agent called", state.messages.length);
-
 		const response = await this.model
 			.withStructuredOutput(responseSchema, {
 				name: "router",
@@ -184,19 +194,13 @@ export class Supervisor {
 			name: "chat_agent",
 		};
 
-		console.log("chat response", aiMessage);
+		console.log("chat agent called");
 
 		return new Command({
 			goto: state.messages.length >= 6 ? "summarizer_agent" : END,
 			update: {
 				messages: aiMessage,
 				goingTo: state.messages.length >= 6 ? "summarizer_agent" : END,
-				agentCalls: {
-					chat_agent: 0,
-					weather_expert: 0,
-					news_expert: 0,
-					supervisor: 0,
-				},
 			},
 		});
 	};
@@ -248,6 +252,8 @@ export class Supervisor {
 					id: message.id ?? new Date().getDate().toString(),
 				}),
 		);
+
+		console.log("summarizer agent called", response);
 
 		return new Command({
 			goto: END,
@@ -314,8 +320,9 @@ export class Supervisor {
 				messages: aiMessage,
 				goingTo: response.goto,
 				agentCalls: {
-					...state.agentCalls,
-					supervisor: (state.agentCalls?.supervisor ?? 0) + 1,
+					weather_expert: 0,
+					news_expert: 0,
+					supervisor: 1,
 				},
 			},
 		});
@@ -350,7 +357,6 @@ export class Supervisor {
 		.addConditionalEdges(
 			"supervisor",
 			(state: typeof AgentState.State) => {
-				console.log("state", state.goingTo);
 				return state.goingTo;
 			},
 			{
