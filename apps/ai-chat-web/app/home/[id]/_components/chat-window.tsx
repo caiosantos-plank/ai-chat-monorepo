@@ -4,8 +4,9 @@
 import type { User } from "@supabase/supabase-js";
 import { useRef, useEffect, type ChangeEventHandler } from "react";
 import { Button, Input } from "@/shared/components";
-import type { AgentCalls, Message } from "@/shared/types/entities";
-import { formatTime } from "@/shared/utils";
+import { useAudioRecording } from "@/shared/hooks";
+import type { Message } from "@/shared/types/entities";
+import { formatTime, getAgentName, getUserInitials } from "@/shared/utils";
 import RecordingAudioComponent from "./recording-audio.component";
 
 interface ChatWindowProps {
@@ -13,6 +14,7 @@ interface ChatWindowProps {
     input: string;
     onInputChange: ChangeEventHandler<HTMLInputElement>;
     onSendMessage: (event: React.FormEvent) => void;
+    onSendAudioMessage: (event: React.FormEvent, audioRecording: Blob) => void;
     loading?: boolean;
     user?: User | null;
     className?: string;
@@ -22,14 +24,16 @@ interface ChatWindowProps {
 export default function ChatWindow({
     messages = [],
     input,
-    onInputChange,
-    onSendMessage,
     loading = false,
     user,
     className = "",
+    onSendMessage,
+    onSendAudioMessage,
+    onInputChange,
     onClearChatHistory
 }: ChatWindowProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { isRecording, audioRecording, audioUrl, startRecording, stopRecording, clearAudioRecording } = useAudioRecording();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,6 +43,13 @@ export default function ChatWindow({
         scrollToBottom();
     }, [messages.length]);
 
+    useEffect(() => {
+        if (isRecording) {
+            onInputChange({ target: { value: "" } } as React.ChangeEvent<HTMLInputElement>);
+        }
+
+    }, [isRecording, onInputChange]);
+
     const handleKeyPress = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -46,30 +57,15 @@ export default function ChatWindow({
         }
     };
 
-    const getAgentName = (agentCalls: AgentCalls) => {
-        const agentNames = {
-            weather_expert: "Weather Expert",
-            news_expert: "News Expert",
-            supervisor: "Cowboy",
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (audioRecording) {
+            onSendAudioMessage(e, audioRecording);
+            clearAudioRecording();
+        } else {
+            onSendMessage(e);
         }
-        const filteredAgentCalls = Object.fromEntries(Object.entries(agentCalls).filter(([_, value]) => value > 0));
-        return Object.keys(filteredAgentCalls).map(key => agentNames[key as keyof AgentCalls]).join(", ");
     }
-
-    const getUserInitials = (name?: string, email?: string) => {
-        if (name) {
-            return name
-                .split(" ")
-                .map(n => n[0])
-                .join("")
-                .toUpperCase()
-                .slice(0, 2);
-        }
-        if (email) {
-            return email[0].toUpperCase();
-        }
-        return "U";
-    };
 
     return (
         <div className={`flex flex-col h-full max-w-4xl mx-auto ${className}`}>
@@ -187,22 +183,30 @@ export default function ChatWindow({
 
             {/* Input Area */}
             <div className="border-t border-border/50 bg-card/50 backdrop-blur-sm p-4">
-                <form onSubmit={onSendMessage} className="flex items-end space-x-3">
+                <form onSubmit={handleSubmit} className="flex items-center space-x-3">
                     <div className="flex-1">
-                        <Input
-                            type="text"
-                            placeholder="Type your message..."
-                            value={input}
-                            onChange={onInputChange}
-                            onKeyPress={handleKeyPress}
-                            disabled={loading}
-                            className="w-full resize-none border-border/50 focus:border-secondary focus:ring-secondary/20"
-                        />
+                        {audioRecording && audioUrl ? (
+                            <div className="flex w-full resize-none border-border/50 focus:border-secondary focus:ring-secondary/20">
+                                <audio src={audioUrl} controls className="flex-1">
+                                    <track default kind="captions" />
+                                </audio>
+                            </div>
+                        ) : (
+                            <Input
+                                type="text"
+                                placeholder="Type your message..."
+                                value={input}
+                                onChange={onInputChange}
+                                onKeyPress={handleKeyPress}
+                                disabled={loading || isRecording}
+                                className="w-full resize-none border-border/50 focus:border-secondary focus:ring-secondary/20"
+                            />
+                        )}
                     </div>
-                    <RecordingAudioComponent />
+                    <RecordingAudioComponent isRecording={isRecording} audioRecording={audioRecording} startRecording={startRecording} stopRecording={stopRecording} deleteAudioRecording={clearAudioRecording} />
                     <Button
                         type="submit"
-                        disabled={!input.trim() || loading}
+                        disabled={(!input.trim() && !audioRecording) || loading}
                         loading={loading}
                         className="px-6 h-10 bg-gradient-to-r from-secondary to-secondary/90 hover:from-secondary/90 hover:to-secondary text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
                     >

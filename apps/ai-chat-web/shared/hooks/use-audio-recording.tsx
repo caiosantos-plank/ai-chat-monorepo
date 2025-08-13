@@ -5,11 +5,21 @@ import { useRef, useState } from "react";
 const useAudioRecording = () => {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const [isRecording, setIsRecording] = useState(false);
-
+    const [audioRecording, setAudioRecording] = useState<Blob | null>(null);
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
     const getAudioStream = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    sampleRate: 44100,
+                    sampleSize: 16,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+
+                }, video: false
+            });
             return stream;
         } catch (error) {
             console.error("Error getting audio stream", error);
@@ -19,6 +29,7 @@ const useAudioRecording = () => {
 
     const startRecording = async () => {
         try {
+            setAudioRecording(null);
             const stream = await getAudioStream();
             const mediaRecorder = new MediaRecorder(stream);
 
@@ -31,20 +42,18 @@ const useAudioRecording = () => {
             mediaRecorder.onstop = () => {
                 const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
                 const audioUrl = URL.createObjectURL(audioBlob);
-                console.log("Audio recorded", audioUrl);
+
+                setAudioRecording(audioBlob);
+                setAudioUrl(audioUrl);
             }
 
             mediaRecorderRef.current = mediaRecorder;
             mediaRecorderRef.current.start();
             setIsRecording(true);
-            console.log("Recording started");
-
 
             const audioContext = new AudioContext();
-            const source = audioContext.createMediaStreamSource(stream);
-            source.connect(audioContext.destination);
+            audioContext.createMediaStreamSource(stream);
 
-            console.log("Microphone stream started");
         } catch (error) {
             console.error("Error starting recording", error);
             return null;
@@ -58,11 +67,15 @@ const useAudioRecording = () => {
             tracks.forEach(track => track.stop());
 
             setIsRecording(false);
-            console.log("Recording stopped");
         }
     }
 
-    return { isRecording, startRecording, stopRecording };
+    const clearAudioRecording = () => {
+        setAudioRecording(null);
+        setAudioUrl(null);
+    }
+
+    return { isRecording, audioRecording, audioUrl, startRecording, stopRecording, clearAudioRecording };
 }
 
 export default useAudioRecording;

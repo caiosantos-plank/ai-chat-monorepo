@@ -36,7 +36,6 @@ export function parseStreamMessageToMessage(message: UIMessage | Message) {
 	const parsedContent = jsonTryParse(message.content);
 
 	if (!parsedContent) {
-		console.log("message", message);
 		return new Message(
 			message.id,
 			message.content,
@@ -46,7 +45,6 @@ export function parseStreamMessageToMessage(message: UIMessage | Message) {
 		);
 	}
 
-	console.log("parsedContent", parsedContent);
 	return new Message(
 		parsedContent.id,
 		parsedContent.content,

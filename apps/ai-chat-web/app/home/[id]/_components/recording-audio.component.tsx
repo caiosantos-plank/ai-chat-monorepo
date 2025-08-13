@@ -1,8 +1,29 @@
-import { useAudioRecording } from "@/shared/hooks";
 
-export default function RecordingAudioComponent() {
-    const { isRecording, startRecording, stopRecording } = useAudioRecording();
 
+interface RecordingAudioProps {
+    isRecording: boolean;
+    audioRecording: Blob | null;
+    startRecording: () => void;
+    stopRecording: () => void;
+    deleteAudioRecording: () => void;
+}
+
+export default function RecordingAudioComponent({ isRecording, audioRecording, startRecording, stopRecording, deleteAudioRecording }: RecordingAudioProps) {
+    if (audioRecording) {
+        return <button type="button" onClick={deleteAudioRecording} className="flex items-center justify-center p-1 rounded-full bg-red-400/50 cursor-pointer hover:bg-red-400/40 transition-all duration-200">
+            <svg viewBox="-2.4 -2.4 28.80 28.80" fill="none" role="alert" width="28px" height="28px">
+                <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                <g id="SVGRepo_iconCarrier">
+                    <path d="M10 11V17" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M14 11V17" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M4 7H20" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M6 7H12H18V18C18 19.6569 16.6569 21 15 21H9C7.34315 21 6 19.6569 6 18V7Z" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                </g>
+            </svg>
+        </button>
+    }
 
     return !isRecording ? (
         <button onClick={startRecording} className="flex items-center justify-center p-2 rounded-full bg-secondary cursor-pointer hover:bg-secondary/80 transition-all duration-200" type="button">
@@ -25,7 +46,7 @@ export default function RecordingAudioComponent() {
             </svg>
         </button>
     ) : (
-        <button onClick={stopRecording} className="flex items-center justify-center p-2 rounded-full bg-secondary cursor-pointer hover:bg-secondary/80 transition-all duration-200" type="button">
+        <button onClick={stopRecording} className="flex items-center justify-center p-2 rounded-full bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-all duration-200" type="button">
             <svg viewBox="-2.4 -2.4 28.80 28.80" fill="none" role="alert" width="22px" height="22px">
                 <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
                 <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>

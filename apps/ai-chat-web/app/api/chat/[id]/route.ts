@@ -3,17 +3,21 @@ import {
 	HumanMessage,
 	SystemMessage,
 } from "@langchain/core/messages";
+import { AudioProcessorClient } from "@/lib/groq";
 import { createModel } from "@/lib/langgraph/model";
-import { Supervisor } from "@/lib/langgraph/supervisor.multiagent";
+import { type NextRequest, NextResponse } from "next/server";
 import ChatHistoryService from "@/services/chat-history.service";
 import type { AgentCalls } from "@/shared/types/entities";
 import {
 	parseAgentMessagesToSupabase,
 	parseSupabaseMessagesToAgentMessages,
 } from "@/shared/utils";
+import OrchestratorGraph from "@/lib/langgraph/orchestrator.graph";
 
 const model = await createModel();
-const agent = new Supervisor(model);
+const audioProcessor = new AudioProcessorClient();
+const agent = new OrchestratorGraph(model, audioProcessor);
+
 const chatHistoryService = new ChatHistoryService();
 
 async function getAllStateHistory(config: {
@@ -58,22 +62,17 @@ async function getChatHistory(id: string) {
 	};
 }
 
-export async function POST(
-	request: Request,
-	{ params }: { params: Promise<{ id: string }> },
+async function loadMessageHistory(
+	chatId: string,
+	config: {
+		configurable: { thread_id: string };
+		streamMode: "values";
+	},
 ) {
-	const { id } = await params;
-	const { messages } = await request.json();
-	const message = messages.at(-1)?.content;
-
-	const config = {
-		configurable: { thread_id: id },
-		streamMode: "values" as const,
-	};
-
 	const agentStateHistory = await getAllStateHistory(config);
 	const { messages: storedChatHistory, summary: storedSummary } =
-		await getChatHistory(id);
+		await getChatHistory(chatId);
+
 	const chatHistory =
 		agentStateHistory.length === 0
 			? storedSummary
@@ -84,16 +83,51 @@ export async function POST(
 					]
 				: storedChatHistory
 			: [];
+	return { storedChatHistory, chatHistory };
+}
 
-	const userMessage = new HumanMessage(message);
+export async function POST(
+	request: NextRequest,
+	{ params }: { params: Promise<{ id: string }> },
+) {
+	const { id } = await params;
+
+	const { searchParams } = new URL(request.url);
+	const isAudio = searchParams.get("isAudio") === "true";
+	let audio: File | null = null;
+
+	console.log("header", request.headers.get("content-type"));
+
+	let formData: FormData | null = null;
+	if (isAudio) {
+		formData = await request.formData();
+		audio = formData.get("audio") as File;
+	}
+
+	const { messages } = !isAudio
+		? await request.json()
+		: { messages: formData?.get("messages") ?? [] };
+	const message = messages.at(-1)?.content;
+
+	const config = {
+		configurable: { thread_id: id },
+		streamMode: "values" as const,
+	};
+
+	const { chatHistory, storedChatHistory } = await loadMessageHistory(
+		id,
+		config,
+	);
+
+	let userMessage = new HumanMessage(!isAudio ? message : "");
 
 	const stream = new ReadableStream({
 		async start(controller) {
-			console.log("start stream");
 			try {
 				const graphStream = await agent.graph.stream(
 					{
-						messages: [...chatHistory, userMessage],
+						messages: isAudio ? chatHistory : [...chatHistory, userMessage],
+						recordings: isAudio && audio ? [audio] : [],
 					},
 					config,
 				);
@@ -108,6 +142,15 @@ export async function POST(
 					if (latestMessage && latestMessage !== lastMessage) {
 						lastMessage = latestMessage;
 						finalMessage = latestMessage;
+
+						if (lastMessage instanceof HumanMessage && isAudio) {
+							userMessage = lastMessage;
+							controller.enqueue(
+								new TextEncoder().encode(
+									JSON.stringify({ ...lastMessage, role: "user" }),
+								),
+							);
+						}
 					}
 				}
 
