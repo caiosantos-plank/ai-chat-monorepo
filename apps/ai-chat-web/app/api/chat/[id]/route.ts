@@ -3,9 +3,9 @@ import {
 	HumanMessage,
 	SystemMessage,
 } from "@langchain/core/messages";
+import type { NextRequest } from "next/server";
 import { AudioProcessorClient } from "@/lib/groq";
 import { createModel } from "@/lib/langgraph/model";
-import { type NextRequest, NextResponse } from "next/server";
 import ChatHistoryService from "@/services/chat-history.service";
 import type { AgentCalls } from "@/shared/types/entities";
 import {
