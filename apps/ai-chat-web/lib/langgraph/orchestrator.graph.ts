@@ -84,7 +84,7 @@ export default class OrchestratorGraph {
 				{
 					role: "system",
 					content: [
-						"You are a supervisor agent responsible for coordinating other specialized agents based on the user's input.",
+						"You are an orchestrator agent responsible for coordinating other specialized agents based on the user's input.",
 						"Your task is to analyze the user's message and delegate it to the most appropriate agent.",
 						"You must avoid call the same agent twice.",
 						"If the user explicitly asks about the weather, you must call the weather_expert with the location to get the weather (Response must have only the location).",
@@ -119,75 +119,72 @@ export default class OrchestratorGraph {
 	};
 
 	private createGraph() {
-		return (
-			new StateGraph(AgentState)
-				.addNode("input_processor", this.inputProcessorAgent.execute)
-				.addNode("orchestrator", this.orchestratorAgent)
-				.addNode("weather_expert", this.weatherAgent.execute, {
-					retryPolicy: {
-						maxAttempts: 3,
-					},
-				})
-				.addNode("weather_tool", weatherToolNode, {
-					retryPolicy: {
-						maxAttempts: 3,
-					},
-				})
-				.addNode("news_expert", this.newsAgent.execute, {
-					retryPolicy: {
-						maxAttempts: 3,
-					},
-				})
-				.addNode("search_tool", searchToolNode, {
-					retryPolicy: {
-						maxAttempts: 3,
-					},
-				})
-				.addNode("chat_agent", this.chatAgent.execute)
-				.addNode("summarizer_agent", this.summarizerAgent.execute)
+		return new StateGraph(AgentState)
+			.addNode("input_processor", this.inputProcessorAgent.execute)
+			.addNode("orchestrator", this.orchestratorAgent)
+			.addNode("weather_expert", this.weatherAgent.execute, {
+				retryPolicy: {
+					maxAttempts: 3,
+				},
+			})
+			.addNode("weather_tool", weatherToolNode, {
+				retryPolicy: {
+					maxAttempts: 3,
+				},
+			})
+			.addNode("news_expert", this.newsAgent.execute, {
+				retryPolicy: {
+					maxAttempts: 3,
+				},
+			})
+			.addNode("search_tool", searchToolNode, {
+				retryPolicy: {
+					maxAttempts: 3,
+				},
+			})
+			.addNode("chat_agent", this.chatAgent.execute)
+			.addNode("summarizer_agent", this.summarizerAgent.execute)
 
-				.addEdge(START, "input_processor")
-				.addEdge("input_processor", "orchestrator")
-				// .addEdge(START, "orchestrator")
-				.addConditionalEdges(
-					"orchestrator",
-					(state: typeof AgentState.State) => {
-						return state.goingTo;
-					},
-					{
-						chat_agent: "chat_agent",
-						weather_expert: "weather_expert",
-						news_expert: "news_expert",
-					},
-				)
+			.addEdge(START, "input_processor")
+			.addEdge("input_processor", "orchestrator")
+			.addConditionalEdges(
+				"orchestrator",
+				(state: typeof AgentState.State) => {
+					return state.goingTo;
+				},
+				{
+					chat_agent: "chat_agent",
+					weather_expert: "weather_expert",
+					news_expert: "news_expert",
+				},
+			)
 
-				.addConditionalEdges("weather_expert", this.hasToContinue, {
+			.addConditionalEdges("weather_expert", this.hasToContinue, {
+				__end__: "__end__",
+				weather_tool: "weather_tool",
+			})
+
+			.addConditionalEdges("news_expert", this.hasToContinue, {
+				__end__: "__end__",
+				search_tool: "search_tool",
+			})
+			.addEdge("weather_tool", "chat_agent")
+			.addEdge("search_tool", "chat_agent")
+
+			.addConditionalEdges(
+				"chat_agent",
+				(state: typeof AgentState.State) => {
+					return state.goingTo;
+				},
+				{
+					summarizer_agent: "summarizer_agent",
 					__end__: "__end__",
-					weather_tool: "weather_tool",
-				})
+				},
+			)
 
-				.addConditionalEdges("news_expert", this.hasToContinue, {
-					__end__: "__end__",
-					search_tool: "search_tool",
-				})
-				.addEdge("weather_tool", "chat_agent")
-				.addEdge("search_tool", "chat_agent")
-
-				.addConditionalEdges(
-					"chat_agent",
-					(state: typeof AgentState.State) => {
-						return state.goingTo;
-					},
-					{
-						summarizer_agent: "summarizer_agent",
-						__end__: "__end__",
-					},
-				)
-
-				.addEdge("summarizer_agent", END)
-				.compile({
-					checkpointer: this.memorySaver,
-				})
-		);
+			.addEdge("summarizer_agent", END)
+			.compile({
+				checkpointer: this.memorySaver,
+			});
 	}
 }

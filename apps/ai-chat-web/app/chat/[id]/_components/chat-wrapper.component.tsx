@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { sendAudioMessage, sendMessage } from '../actions.client';
 import { clearChatHistory } from "../actions.server";
-import ChatWindow from "./chat-window";
+import ChatWindow from "./chat-window.component";
 import type { Message } from "@/shared/types/entities";
 import { parseStreamMessageToMessage } from "@/shared/utils";
+import { v4 } from 'uuid';
 
 interface ChatWrapperProps {
     chatId: string;
@@ -18,6 +19,7 @@ export default function ChatWrapper({ chatId, history }: ChatWrapperProps) {
     const router = useRouter();
     const [parsedMessages, setParsedMessages] = useState<Message[]>(history);
     const [isLoading, setIsLoading] = useState(false);
+    const [hasError, setHasError] = useState(false);
 
     const { input, messages, handleInputChange, setInput, setMessages } = useChat({
         streamProtocol: "text",
@@ -30,12 +32,21 @@ export default function ChatWrapper({ chatId, history }: ChatWrapperProps) {
         setParsedMessages(messages.map(parseStreamMessageToMessage));
     }, [messages]);
 
+    const cleanMessagesWithErrors = () => {
+        setMessages((prevMessages) => prevMessages.slice(0, -1));
+        setHasError(false);
+    }
+
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
 
+        if (hasError) {
+            cleanMessagesWithErrors();
+        }
+
         const userMessage = {
-            id: "user-message",
+            id: v4(),
             role: "user",
             content: input,
         } as Message;
@@ -45,7 +56,11 @@ export default function ChatWrapper({ chatId, history }: ChatWrapperProps) {
 
         const data = await sendMessage(chatId, [userMessage]);
 
-        setMessages((prevMessages) => [...prevMessages, data]);
+        if (data) {
+            setMessages((prevMessages) => [...prevMessages, data]);
+        } else {
+            setHasError(true);
+        }
         setIsLoading(false);
     };
 
@@ -53,9 +68,29 @@ export default function ChatWrapper({ chatId, history }: ChatWrapperProps) {
         e.preventDefault();
         setIsLoading(true);
 
-        const data = await sendAudioMessage(chatId, audioRecording, messages);
+        if (hasError) {
+            cleanMessagesWithErrors();
+        }
 
-        setMessages((prevMessages) => [...prevMessages, ...data]);
+        const data = await sendAudioMessage(chatId, audioRecording, messages);
+        if (data.length > 0) {
+            setMessages((prevMessages) => [...prevMessages, ...data]);
+        }
+
+        setIsLoading(false);
+    }
+
+    const handleRetryMessage = async (message: Message) => {
+        setIsLoading(true);
+        setHasError(false);
+        const data = await sendMessage(chatId, [message]);
+
+
+        if (data) {
+            setMessages((prevMessages) => [...prevMessages, data]);
+        } else {
+            setHasError(true);
+        }
         setIsLoading(false);
     }
 
@@ -69,13 +104,15 @@ export default function ChatWrapper({ chatId, history }: ChatWrapperProps) {
     return (
         <div className="h-[calc(100vh-4rem)]">
             <ChatWindow
-                messages={parsedMessages}
                 input={input}
+                messages={parsedMessages}
+                loading={isLoading}
+                hasError={hasError}
                 onInputChange={handleInputChange}
                 onSendMessage={handleSendMessage}
                 onSendAudioMessage={handleSendAudioMessage}
-                loading={isLoading}
                 onClearChatHistory={handleClearChatHistory}
+                retryMessage={handleRetryMessage}
             />
         </div>
     )

@@ -22,13 +22,20 @@ export function parseSupabaseMessagesToAgentMessages(
 	messages: {
 		content: string;
 		role: string;
+		agentCalls?: AgentCalls;
 	}[],
 ) {
 	return messages.map((message) => {
 		if (message.role === "assistant") {
-			return new AIMessage(message.content);
+			return {
+				message: new AIMessage(message.content),
+				agentCalls: message.agentCalls,
+			};
 		}
-		return new HumanMessage(message.content);
+		return {
+			message: new HumanMessage(message.content),
+			agentCalls: message.agentCalls,
+		};
 	});
 }
 

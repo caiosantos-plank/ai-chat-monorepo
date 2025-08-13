@@ -37,14 +37,14 @@ async function getAllStateHistory(config: {
 async function saveStateToChatHistory(
 	id: string,
 	summary: string,
-	currentHistory: BaseMessage[],
+	currentHistory: { message: BaseMessage; agentCalls: AgentCalls }[],
 	message: BaseMessage,
 	agentCalls: AgentCalls,
 ) {
 	const parsedMessage = parseAgentMessagesToSupabase(message, agentCalls);
 	const history = [
-		...currentHistory.map((message) =>
-			parseAgentMessagesToSupabase(message, agentCalls),
+		...currentHistory.map((item) =>
+			parseAgentMessagesToSupabase(item.message, item.agentCalls),
 		),
 		parsedMessage,
 	];
@@ -81,7 +81,7 @@ async function loadMessageHistory(
 							`Summary of conversation earlier: ${storedSummary}`,
 						),
 					]
-				: storedChatHistory
+				: storedChatHistory.map((chat) => chat.message)
 			: [];
 	return { storedChatHistory, chatHistory };
 }
@@ -95,8 +95,6 @@ export async function POST(
 	const { searchParams } = new URL(request.url);
 	const isAudio = searchParams.get("isAudio") === "true";
 	let audio: File | null = null;
-
-	console.log("header", request.headers.get("content-type"));
 
 	let formData: FormData | null = null;
 	if (isAudio) {
@@ -161,7 +159,7 @@ export async function POST(
 					await saveStateToChatHistory(
 						id,
 						summary,
-						[...storedChatHistory, userMessage],
+						[...storedChatHistory, { message: userMessage, agentCalls }],
 						finalMessage,
 						agentCalls,
 					);
@@ -182,9 +180,7 @@ export async function POST(
 					createdAt: new Date().toISOString(),
 				};
 
-				controller.enqueue(
-					new TextEncoder().encode(`data: ${JSON.stringify(errorData)}\n\n`),
-				);
+				controller.enqueue(new TextEncoder().encode(JSON.stringify(errorData)));
 
 				controller.close();
 			}

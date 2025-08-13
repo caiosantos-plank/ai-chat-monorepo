@@ -11,10 +11,7 @@ export default class InputProcessorAgent {
 	}
 
 	public execute = async (state: typeof AgentState.State) => {
-		console.log("input processor agent", state);
 		const lastRecording = state.recordings.at(-1);
-
-		console.log("lastRecording", lastRecording);
 
 		if (!lastRecording) {
 			return new Command({
@@ -26,11 +23,7 @@ export default class InputProcessorAgent {
 		}
 
 		const transcription = await this.client.transcribe(lastRecording);
-		console.log("transcription", transcription);
-
 		const newMessage = new HumanMessage(transcription);
-
-		console.log("newMessage", newMessage);
 
 		return new Command({
 			goto: "orchestrator",

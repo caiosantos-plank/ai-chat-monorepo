@@ -1,16 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { User } from "@supabase/supabase-js";
 import { useState } from "react";
-import AuthService from "@/services/auth.service";
+import type { User } from "@supabase/supabase-js";
 import { Button } from "@/shared/components";
 
+interface UserMenuProps {
+    user: User;
+    signOut: () => void;
+}
 
-
-export default function UserMenu({ user }: { user: User }) {
-    const router = useRouter();
+export default function UserMenu({ user, signOut }: UserMenuProps) {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
     const getUserInitials = (name?: string, email?: string) => {
@@ -27,18 +27,6 @@ export default function UserMenu({ user }: { user: User }) {
         }
         return "U";
     };
-
-    const handleSignOut = async () => {
-        try {
-            const authService = new AuthService();
-            await authService.signOut();
-            router.push("/login");
-        } catch (error) {
-            console.error("Error signing out:", error);
-        }
-    };
-
-
 
     const getUserDisplayName = () => {
         if (user?.user_metadata?.full_name) {
@@ -108,10 +96,7 @@ export default function UserMenu({ user }: { user: User }) {
                                 <hr className="my-1 border-border/50" />
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        setIsUserMenuOpen(false);
-                                        handleSignOut();
-                                    }}
+                                    onClick={signOut}
                                     className="block w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors duration-200"
                                 >
                                     Sign Out

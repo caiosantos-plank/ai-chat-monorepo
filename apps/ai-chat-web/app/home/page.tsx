@@ -1,4 +1,5 @@
-import { getChats } from "@/services/chat.service";
+
+import { getChats, createChat, deleteChat } from "./actions";
 import { ChatCard, MyChatsHeader } from "./_components";
 
 export default async function HomePage() {
@@ -8,13 +9,13 @@ export default async function HomePage() {
 		<div className="container mx-auto px-4 py-10 max-w-7xl">
 			<div className="relative mb-8">
 				<div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-r from-secondary/10 via-transparent to-secondary/10 blur-2xl" />
-				<MyChatsHeader />
+				<MyChatsHeader createNewChat={createChat} />
 			</div>
 
 			{chats && chats.length > 0 ? (
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-					{chats.map((chat, idx) => (
-						<ChatCard key={chat.id} chat={chat} index={idx} />
+					{chats.map((chat) => (
+						<ChatCard key={chat.id} chat={chat} deleteChat={deleteChat} />
 					))}
 				</div>
 			) : (
@@ -26,7 +27,6 @@ export default async function HomePage() {
 								fill="none"
 								stroke="currentColor"
 								viewBox="0 0 24 24"
-								xmlns="http://www.w3.org/2000/svg"
 								aria-hidden="true"
 							>
 								<path

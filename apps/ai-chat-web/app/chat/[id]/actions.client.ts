@@ -1,13 +1,17 @@
 import type { Message } from "ai";
 
 export async function sendMessage(chatId: string, messages: Message[]) {
-	const response = await fetch(`/api/chat/${chatId}`, {
-		method: "POST",
-		body: JSON.stringify({ messages }),
-	});
+	try {
+		const response = await fetch(`/api/chat/${chatId}`, {
+			method: "POST",
+			body: JSON.stringify({ messages }),
+		});
 
-	const data = await response.json();
-	return data;
+		const data = await response.json();
+		return data;
+	} catch (error) {
+		return null;
+	}
 }
 
 export const sendAudioMessage = async (
@@ -40,9 +44,11 @@ export const sendAudioMessage = async (
 			const { done, value } = await reader.read();
 			if (done) break;
 			const text = decoder.decode(value, { stream: true });
+			console.log("text", text);
 
 			newMessages.push(JSON.parse(text));
 		}
+
 		return newMessages;
 	} catch (error) {
 		console.error("Error sending audio message", error);

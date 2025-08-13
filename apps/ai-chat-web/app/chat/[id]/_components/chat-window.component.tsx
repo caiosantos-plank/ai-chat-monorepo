@@ -10,14 +10,16 @@ import { formatTime, getAgentName, getUserInitials } from "@/shared/utils";
 import RecordingAudioComponent from "./recording-audio.component";
 
 interface ChatWindowProps {
-    messages?: Message[];
     input: string;
+    loading?: boolean;
+    user?: User | null;
+    messages?: Message[];
+    className?: string;
+    hasError?: boolean
     onInputChange: ChangeEventHandler<HTMLInputElement>;
     onSendMessage: (event: React.FormEvent) => void;
     onSendAudioMessage: (event: React.FormEvent, audioRecording: Blob) => void;
-    loading?: boolean;
-    user?: User | null;
-    className?: string;
+    retryMessage: (message: Message) => void;
     onClearChatHistory?: () => void;
 }
 
@@ -27,17 +29,22 @@ export default function ChatWindow({
     loading = false,
     user,
     className = "",
+    hasError = false,
     onSendMessage,
     onSendAudioMessage,
     onInputChange,
-    onClearChatHistory
+    onClearChatHistory,
+    retryMessage
 }: ChatWindowProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { isRecording, audioRecording, audioUrl, startRecording, stopRecording, clearAudioRecording } = useAudioRecording();
 
+    const lastMessagePosition = messages.length - 1;
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
+
 
     useEffect(() => {
         scrollToBottom();
@@ -111,7 +118,7 @@ export default function ChatWindow({
                         </div>
                     </div>
                 ) : (
-                    messages.map((message) => (
+                    messages.map((message, index) => (
                         <div
                             key={message.id}
                             className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
@@ -131,7 +138,7 @@ export default function ChatWindow({
                                 {/* Message Content */}
                                 <div className={`flex flex-col space-y-1 ${message.role === "user" ? "items-end" : "items-start"
                                     }`}>
-                                    <div className={`px-4 py-3 rounded-2xl max-w-full ${message.role === "user"
+                                    <div className={`px-4 py-3 rounded-2xl max-w-full ${lastMessagePosition === index && hasError ? "bg-red-500/10 border border-red-500/20" : message.role === "user"
                                         ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground"
                                         : "bg-card border border-border/50 text-foreground"
                                         }`}>
@@ -150,6 +157,26 @@ export default function ChatWindow({
                                         <span>{formatTime(message.timestamp)}</span>
                                     </div>
                                 </div>
+                                {lastMessagePosition === index && hasError && (
+                                    <div className="flex items-center h-10.5 text-xs text-muted-foreground">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="flex items-center h-10.5 text-xs text-muted-foreground"
+                                            onClick={() => retryMessage(message)}>
+                                            <div className="flex items-center justify-center w-6 h-6 bg-red-500/60 rounded-full p-1">
+                                                <svg fill="#ffffff" width="22px" height="22px" viewBox="-1.12 -1.12 18.24 18.24" stroke="#ffffff" aria-label="Error" role="img">
+                                                    <g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                                                    <g id="SVGRepo_iconCarrier">
+                                                        <path d="M7 12v-2l-4 3 4 3v-2h2.997A6.006 6.006 0 0 0 16 8h-2a4 4 0 0 1-3.996 4H7zM9 2H6.003A6.006 6.006 0 0 0 0 8h2a4 4 0 0 1 3.996-4H9v2l4-3-4-3v2z" fillRule="evenodd">
+                                                        </path>
+                                                    </g>
+                                                </svg>
+                                            </div>
+                                        </Button>
+                                    </div>
+
+                                )}
                             </div>
                         </div>
                     ))
