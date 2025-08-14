@@ -23,6 +23,8 @@ export default class NewsAgent {
 			...state.messages,
 		]);
 
+		console.log("news agent called");
+
 		if (response.tool_calls && response.tool_calls.length > 0) {
 			return new Command({
 				goto: "search_tool",
@@ -38,15 +40,29 @@ export default class NewsAgent {
 			});
 		}
 
-		console.log("news agent called");
+		const fallbackToolCall = {
+			id: `call_get_news_${Date.now()}`,
+			type: "function",
+			function: {
+				name: "get_latest_news",
+				arguments: JSON.stringify({ query: "latest news" }),
+			},
+		};
+
+		const toolCall = {
+			role: "assistant",
+			content: "",
+			tool_calls: [fallbackToolCall],
+			name: "news_expert",
+		};
 
 		return new Command({
-			goto: "chat_agent",
+			goto: "search_tool",
 			update: {
-				messages: response,
-				goingTo: "chat_agent",
+				messages: toolCall,
+				goingTo: "search_tool",
 				agentCalls: {
-					...state?.agentCalls,
+					...state.agentCalls,
 					news_expert: (state.agentCalls?.news_expert ?? 0) + 1,
 				},
 			},

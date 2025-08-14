@@ -159,15 +159,8 @@ export default class OrchestratorGraph {
 				},
 			)
 
-			.addConditionalEdges("weather_expert", this.hasToContinue, {
-				__end__: "__end__",
-				weather_tool: "weather_tool",
-			})
-
-			.addConditionalEdges("news_expert", this.hasToContinue, {
-				__end__: "__end__",
-				search_tool: "search_tool",
-			})
+			.addEdge("weather_expert", "weather_tool")
+			.addEdge("news_expert", "search_tool")
 			.addEdge("weather_tool", "chat_agent")
 			.addEdge("search_tool", "chat_agent")
 

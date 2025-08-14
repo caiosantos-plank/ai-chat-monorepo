@@ -55,11 +55,27 @@ export default class WeatherAgent {
 			});
 		}
 
+		const fallbackToolCall = {
+			id: `call_get_weather_${Date.now()}`,
+			type: "function",
+			function: {
+				name: "get_weather",
+				arguments: JSON.stringify({
+					location: "Belo Horizonte",
+				}),
+			},
+		};
+		const toolCall = {
+			role: "assistant",
+			content: "",
+			tool_calls: [fallbackToolCall],
+			name: "weather_expert",
+		};
 		return new Command({
-			goto: "chat_agent",
+			goto: "weather_tool",
 			update: {
-				messages: response,
-				goingTo: "chat_agent",
+				messages: toolCall,
+				goingTo: "weather_tool",
 				agentCalls: {
 					...state.agentCalls,
 					weather_expert: (state.agentCalls?.weather_expert ?? 0) + 1,
