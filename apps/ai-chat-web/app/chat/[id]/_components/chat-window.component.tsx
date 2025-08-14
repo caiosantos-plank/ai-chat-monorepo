@@ -136,7 +136,7 @@ export default function ChatWindow({
                                     }`}>
                                     {message.role === "user"
                                         ? getUserInitials(user?.user_metadata?.full_name, user?.email)
-                                        : "AI"
+                                        : "JK"
                                     }
                                 </div>
 

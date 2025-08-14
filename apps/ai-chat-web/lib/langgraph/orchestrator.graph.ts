@@ -45,21 +45,6 @@ export default class OrchestratorGraph {
 		this.graph = this.createGraph();
 	}
 
-	private hasToContinue(state: typeof AgentState.State) {
-		const { messages, goingTo } = state;
-		const lastMessage = messages.at(-1);
-
-		if (
-			lastMessage &&
-			"tool_calls" in lastMessage &&
-			Array.isArray(lastMessage.tool_calls) &&
-			lastMessage.tool_calls?.length
-		) {
-			return goingTo;
-		}
-		return END;
-	}
-
 	private orchestratorAgent = async (state: typeof AgentState.State) => {
 		const destinations = ["weather_expert", "news_expert", "chat_agent"];
 
