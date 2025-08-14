@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import NavigationHeader from "@/shared/components/ui/navigation/navigation-header";
-import { getAuthenticatedUser } from "./actions";
+import { getAuthenticatedUser, signOut } from "./actions";
 
 export default async function HomeLayout({
 	children,
@@ -16,7 +16,7 @@ export default async function HomeLayout({
 
 	return (
 		<div className="min-h-screen bg-background">
-			<NavigationHeader user={user} />
+			<NavigationHeader user={user} signOut={signOut} />
 			<main className="flex-1">
 				{children}
 			</main>

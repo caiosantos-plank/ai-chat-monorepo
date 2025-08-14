@@ -104,8 +104,11 @@ export default class AuthService implements AuthServiceInterface {
 
 	async signOut(): Promise<Response<void>> {
 		try {
+			console.log("signing out");
 			const supabase = await createClient();
 			const { error } = await supabase.auth.signOut();
+
+			console.log("error", error);
 
 			if (error) {
 				throw new Error(error.message);

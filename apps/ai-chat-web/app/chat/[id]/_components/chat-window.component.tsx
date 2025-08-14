@@ -1,76 +1,78 @@
 /** biome-ignore-all lint/correctness/useExhaustiveDependencies: <explanation> */
 "use client";
 
-import { useState, useRef, useEffect } from "react";
 import type { User } from "@supabase/supabase-js";
+import { useRef, useEffect, type ChangeEventHandler } from "react";
 import { Button, Input } from "@/shared/components";
-import { formatTime } from "@/shared/utils";
-
-interface Message {
-    id: string;
-    content: string;
-    role: "user" | "assistant";
-    timestamp: Date;
-    user?: User;
-}
+import { useAudioRecording } from "@/shared/hooks";
+import type { Message } from "@/shared/types/entities";
+import { formatTime, getAgentName, getUserInitials } from "@/shared/utils";
+import RecordingAudioComponent from "./recording-audio.component";
 
 interface ChatWindowProps {
-    messages?: Message[];
-    onSendMessage?: (message: string) => void;
+    input: string;
     loading?: boolean;
     user?: User | null;
+    messages?: Message[];
     className?: string;
+    hasError?: boolean
+    onInputChange: ChangeEventHandler<HTMLInputElement>;
+    onSendMessage: (event: React.FormEvent) => void;
+    onSendAudioMessage: (event: React.FormEvent, audioRecording: Blob) => void;
+    retryMessage: (message: Message) => void;
     onClearChatHistory?: () => void;
 }
 
 export default function ChatWindow({
     messages = [],
-    onSendMessage,
+    input,
     loading = false,
     user,
     className = "",
-    onClearChatHistory
+    hasError = false,
+    onSendMessage,
+    onSendAudioMessage,
+    onInputChange,
+    onClearChatHistory,
+    retryMessage
 }: ChatWindowProps) {
-    const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { isRecording, audioRecording, audioUrl, startRecording, stopRecording, clearAudioRecording } = useAudioRecording();
+
+    const lastMessagePosition = messages.length - 1;
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+
     useEffect(() => {
         scrollToBottom();
     }, [messages.length]);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (inputValue.trim() && onSendMessage && !loading) {
-            onSendMessage(inputValue.trim());
-            setInputValue("");
+    useEffect(() => {
+        if (isRecording) {
+            onInputChange({ target: { value: "" } } as React.ChangeEvent<HTMLInputElement>);
         }
-    };
+
+    }, [isRecording, onInputChange]);
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit(e);
+            onSendMessage(e);
         }
     };
 
-    const getUserInitials = (name?: string, email?: string) => {
-        if (name) {
-            return name
-                .split(" ")
-                .map(n => n[0])
-                .join("")
-                .toUpperCase()
-                .slice(0, 2);
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (audioRecording) {
+            onSendAudioMessage(e, audioRecording);
+            clearAudioRecording();
+        } else {
+            onSendMessage(e);
         }
-        if (email) {
-            return email[0].toUpperCase();
-        }
-        return "U";
-    };
+    }
 
     return (
         <div className={`flex flex-col h-full max-w-4xl mx-auto ${className}`}>
@@ -94,10 +96,8 @@ export default function ChatWindow({
                         <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                         </svg>
-                        History
+                        {" "}History
                     </Button>
-                    {/* <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm text-muted-foreground">Active</span> */}
                 </div>
             </div>
 
@@ -118,7 +118,7 @@ export default function ChatWindow({
                         </div>
                     </div>
                 ) : (
-                    messages.map((message) => (
+                    messages.map((message, index) => (
                         <div
                             key={message.id}
                             className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
@@ -138,7 +138,7 @@ export default function ChatWindow({
                                 {/* Message Content */}
                                 <div className={`flex flex-col space-y-1 ${message.role === "user" ? "items-end" : "items-start"
                                     }`}>
-                                    <div className={`px-4 py-3 rounded-2xl max-w-full ${message.role === "user"
+                                    <div className={`px-4 py-3 rounded-2xl max-w-full ${lastMessagePosition === index && hasError ? "bg-red-500/10 border border-red-500/20" : message.role === "user"
                                         ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground"
                                         : "bg-card border border-border/50 text-foreground"
                                         }`}>
@@ -148,11 +148,35 @@ export default function ChatWindow({
                                     </div>
                                     <div className={`flex items-center space-x-2 text-xs text-muted-foreground ${message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
                                         }`}>
-                                        <span>{message.role === "user" ? "You" : "AI Assistant"}</span>
+                                        <div className="flex items-center space-x-2 border-1 border-background p-1 rounded-md bg-red-400/50">
+                                            <span className="text-xs text-white">
+                                                {message.role === "user" ? "You" : getAgentName(message.agentCalls ?? {})}
+                                            </span>
+                                        </div>
                                         <span>•</span>
                                         <span>{formatTime(message.timestamp)}</span>
                                     </div>
                                 </div>
+                                {lastMessagePosition === index && hasError && (
+                                    <div className="flex items-center h-10.5 text-xs text-muted-foreground">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="flex items-center h-10.5 text-xs text-muted-foreground"
+                                            onClick={() => retryMessage(message)}>
+                                            <div className="flex items-center justify-center w-6 h-6 bg-red-500/60 rounded-full p-1">
+                                                <svg fill="#ffffff" width="22px" height="22px" viewBox="-1.12 -1.12 18.24 18.24" stroke="#ffffff" aria-label="Error" role="img">
+                                                    <g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                                                    <g id="SVGRepo_iconCarrier">
+                                                        <path d="M7 12v-2l-4 3 4 3v-2h2.997A6.006 6.006 0 0 0 16 8h-2a4 4 0 0 1-3.996 4H7zM9 2H6.003A6.006 6.006 0 0 0 0 8h2a4 4 0 0 1 3.996-4H9v2l4-3-4-3v2z" fillRule="evenodd">
+                                                        </path>
+                                                    </g>
+                                                </svg>
+                                            </div>
+                                        </Button>
+                                    </div>
+
+                                )}
                             </div>
                         </div>
                     ))
@@ -186,21 +210,30 @@ export default function ChatWindow({
 
             {/* Input Area */}
             <div className="border-t border-border/50 bg-card/50 backdrop-blur-sm p-4">
-                <form onSubmit={handleSubmit} className="flex items-end space-x-3">
+                <form onSubmit={handleSubmit} className="flex items-center space-x-3">
                     <div className="flex-1">
-                        <Input
-                            type="text"
-                            placeholder="Type your message..."
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            disabled={loading}
-                            className="w-full resize-none border-border/50 focus:border-secondary focus:ring-secondary/20"
-                        />
+                        {audioRecording && audioUrl ? (
+                            <div className="flex w-full resize-none border-border/50 focus:border-secondary focus:ring-secondary/20">
+                                <audio src={audioUrl} controls className="flex-1">
+                                    <track default kind="captions" />
+                                </audio>
+                            </div>
+                        ) : (
+                            <Input
+                                type="text"
+                                placeholder="Type your message..."
+                                value={input}
+                                onChange={onInputChange}
+                                onKeyPress={handleKeyPress}
+                                disabled={loading || isRecording}
+                                className="w-full resize-none border-border/50 focus:border-secondary focus:ring-secondary/20"
+                            />
+                        )}
                     </div>
+                    <RecordingAudioComponent isRecording={isRecording} audioRecording={audioRecording} startRecording={startRecording} stopRecording={stopRecording} deleteAudioRecording={clearAudioRecording} />
                     <Button
                         type="submit"
-                        disabled={!inputValue.trim() || loading}
+                        disabled={(!input.trim() && !audioRecording) || loading}
                         loading={loading}
                         className="px-6 h-10 bg-gradient-to-r from-secondary to-secondary/90 hover:from-secondary/90 hover:to-secondary text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
                     >
@@ -211,7 +244,7 @@ export default function ChatWindow({
                 {/* Input Helpers */}
                 <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
                     <span>Press Enter to send, Shift+Enter for new line</span>
-                    <span>{inputValue.length}/1000</span>
+                    <span>{input.length}/1000</span>
                 </div>
             </div>
         </div>
