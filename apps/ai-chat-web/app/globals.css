@@ -1,23 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f7fb;
+  /* Joker theme - light mode */
+  --background: #f5f3ff; /* lavender 50 */
   --foreground: #171717;
   --card: #ffffff;
   --card-foreground: #171717;
-  --border: #e5e5e5;
+  --border: #e9d5ff; /* purple 200 */
   --input: #ffffff;
-  --primary: #000000;
+  --primary: #6a0dad; /* joker purple */
   --primary-foreground: #ffffff;
-  --secondary: #8b5cf6;
-  --secondary-foreground: #ffffff;
-  --accent: #f3f4f6;
+  --secondary: #22c55e; /* vibrant green */
+  --secondary-foreground: #0a0a0a;
+  --accent: #f3e8ff; /* lavender 100 */
   --accent-foreground: #171717;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --muted: #f9fafb;
+  --muted: #f3e8ff;
   --muted-foreground: #6b7280;
-  --ring: #8b5cf6;
+  --ring: #22c55e; /* neon green ring */
 }
 
 @theme inline {
@@ -44,23 +45,24 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0b1020;
-    --foreground: #ededed;
-    --card: #0a0a0a;
-    --card-foreground: #ededed;
-    --border: #262626;
-    --input: #0a0a0a;
-    --primary: #ffffff;
-    --primary-foreground: #000000;
-    --secondary: #a855f7;
-    --secondary-foreground: #ffffff;
-    --accent: #1f2937;
-    --accent-foreground: #ededed;
+    /* Joker theme - dark mode */
+    --background: #0b061a; /* deep purple/black */
+    --foreground: #e6e0ff; /* soft lavender */
+    --card: #130a24; /* dark purple card */
+    --card-foreground: #e6e0ff;
+    --border: #2a1e3e; /* purple border */
+    --input: #130a24;
+    --primary: #6a0dad; /* joker purple */
+    --primary-foreground: #ffffff;
+    --secondary: #22c55e; /* vibrant green */
+    --secondary-foreground: #0a0a0a;
+    --accent: #1b132c; /* deeper purple for hovers */
+    --accent-foreground: #e6e0ff;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --muted: #1f2937;
-    --muted-foreground: #9ca3af;
-    --ring: #a855f7;
+    --muted: #1a122a;
+    --muted-foreground: #c4b5fd; /* light lavender */
+    --ring: #22c55e; /* neon green ring */
   }
 }
 

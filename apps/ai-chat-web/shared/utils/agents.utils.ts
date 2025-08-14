@@ -2,16 +2,16 @@ import type { AgentCalls } from "../types/entities";
 
 export const getAgentName = (agentCalls: AgentCalls) => {
 	const agentNames = {
-		weather_expert: "Weather Expert",
-		news_expert: "News Expert",
-		supervisor: "Cowboy",
+		weather_expert: "Weather Man",
+		news_expert: "News Man",
+		supervisor: "Joker",
 	};
 	const filteredAgentCalls = Object.fromEntries(
 		Object.entries(agentCalls).filter(([_, value]) => value > 0),
 	);
-	return Object.keys(filteredAgentCalls)
-		.map((key) => agentNames[key as keyof AgentCalls])
-		.join(", ");
+	return Object.keys(filteredAgentCalls).map(
+		(key) => agentNames[key as keyof AgentCalls],
+	);
 };
 
 export const getUserInitials = (name?: string, email?: string) => {
