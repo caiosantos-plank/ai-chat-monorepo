@@ -45,21 +45,6 @@ export default class OrchestratorGraph {
 		this.graph = this.createGraph();
 	}
 
-	private hasToContinue(state: typeof AgentState.State) {
-		const { messages, goingTo } = state;
-		const lastMessage = messages.at(-1);
-
-		if (
-			lastMessage &&
-			"tool_calls" in lastMessage &&
-			Array.isArray(lastMessage.tool_calls) &&
-			lastMessage.tool_calls?.length
-		) {
-			return goingTo;
-		}
-		return END;
-	}
-
 	private orchestratorAgent = async (state: typeof AgentState.State) => {
 		const destinations = ["weather_expert", "news_expert", "chat_agent"];
 
@@ -159,15 +144,8 @@ export default class OrchestratorGraph {
 				},
 			)
 
-			.addConditionalEdges("weather_expert", this.hasToContinue, {
-				__end__: "__end__",
-				weather_tool: "weather_tool",
-			})
-
-			.addConditionalEdges("news_expert", this.hasToContinue, {
-				__end__: "__end__",
-				search_tool: "search_tool",
-			})
+			.addEdge("weather_expert", "weather_tool")
+			.addEdge("news_expert", "search_tool")
 			.addEdge("weather_tool", "chat_agent")
 			.addEdge("search_tool", "chat_agent")
 

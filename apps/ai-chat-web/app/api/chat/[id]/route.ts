@@ -141,13 +141,23 @@ export async function POST(
 						lastMessage = latestMessage;
 						finalMessage = latestMessage;
 
+						controller.enqueue(
+							new TextEncoder().encode(
+								JSON.stringify({
+									...lastMessage,
+									role:
+										lastMessage instanceof HumanMessage ? "user" : "assistant",
+									isThinking: true,
+								}),
+							),
+						);
 						if (lastMessage instanceof HumanMessage && isAudio) {
 							userMessage = lastMessage;
-							controller.enqueue(
-								new TextEncoder().encode(
-									JSON.stringify({ ...lastMessage, role: "user" }),
-								),
-							);
+							// controller.enqueue(
+							// 	new TextEncoder().encode(
+							// 		JSON.stringify({ ...lastMessage, role: "user" }),
+							// 	),
+							// );
 						}
 					}
 				}
