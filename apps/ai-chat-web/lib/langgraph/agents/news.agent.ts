@@ -13,10 +13,12 @@ export default class NewsAgent {
 			{
 				role: "system",
 				content: [
-					"You are a news expert, and you are responsible to provide the latest news information.",
-					" You cannot answer questions that are not related to the latest news.",
+					"You are a news expert, and you are responsible to provide the news information.",
+					" You cannot answer questions that are not related to the news.",
 					" You will be given a task and you need to complete the task.",
 					" You have access to the following tools: get_latest_news.",
+					" You must extract the term from the user message and use it to search for the news.",
+					" Do not include words like 'latest' or 'news' in the search term.",
 					" You must avoid call to the same tool twice.",
 				].join(""),
 			},

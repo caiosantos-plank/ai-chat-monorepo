@@ -12,6 +12,8 @@ import RecordingAudioComponent from "./recording-audio.component";
 interface ChatWindowProps {
     input: string;
     loading?: boolean;
+    isThinking?: boolean;
+    thinkingMessage?: Message | null;
     user?: User | null;
     messages?: Message[];
     className?: string;
@@ -27,6 +29,8 @@ export default function ChatWindow({
     messages = [],
     input,
     loading = false,
+    isThinking = false,
+    thinkingMessage,
     user,
     className = "",
     hasError = false,
@@ -44,7 +48,6 @@ export default function ChatWindow({
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
-
 
     useEffect(() => {
         scrollToBottom();
@@ -126,7 +129,7 @@ export default function ChatWindow({
                 ) : (
                     messages.map((message, index) => (
                         <div
-                            key={message.id}
+                            key={`${message.id}-${index}`}
                             className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                         >
                             <div className={`flex items-start space-x-3 max-w-[80%] ${message.role === "user" ? "flex-row-reverse space-x-reverse" : ""}`}>
@@ -190,7 +193,7 @@ export default function ChatWindow({
                     ))
                 )}
 
-                {loading && (
+                {loading && !isThinking && (
                     <div className="flex justify-start">
                         <div className="flex items-start space-x-3 max-w-[80%]">
                             <div className="w-8 h-8 bg-gradient-to-br from-secondary to-secondary/80 rounded-full flex items-center justify-center text-white text-sm font-semibold">
@@ -204,8 +207,23 @@ export default function ChatWindow({
                                             <div className="w-2 h-2 bg-secondary rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
                                             <div className="w-2 h-2 bg-secondary rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
                                         </div>
-                                        <span className="text-sm text-muted-foreground">AI is typing...</span>
+                                        <span className="text-sm text-muted-foreground">Joker is typing...</span>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {isThinking && thinkingMessage && (
+                    <div className="flex justify-start">
+                        <div className="flex items-start space-x-3 max-w-[80%]">
+
+                            <div className="flex flex-col space-y-1">
+                                <div className="px-4 py-3 rounded-2xl ">
+                                    <p className="text-sm leading-relaxed whitespace-pre-wrap text-gray-50/90">
+                                        Thinking....
+                                        {thinkingMessage.content}
+                                    </p>
                                 </div>
                             </div>
                         </div>
