@@ -1,4 +1,4 @@
-## AI Chat Monorepo
+## JOKER Chat Monorepo
 
 An AI-powered chat application built with Next.js and LangGraph that supports text and voice messages, tool-augmented responses (weather and news), and persistent chat history via Supabase.
 
